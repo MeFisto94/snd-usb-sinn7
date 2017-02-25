@@ -18,6 +18,7 @@ Inside of this archive you have `debian` and `debian.master` which are control f
 Inside of this archive you also find `linux-source-4.8.0.tar.bz2`, extract that again to your workspace.  
   
 Now change to `sound/usb`. Now copy the `src` folder of this project as `sinn7` folder under `sound/usb`. Also copy the `build.sh` into `sound/usb`.
+Then you have to edit `sound/usb/Makefile` and add `sinn7/` to `obj-$(CONFIG_SND)`
 
 **If you want to add the kernel module permanently to your OS**: Execute ./build.sh inside the `sound/usb` folder.  
 

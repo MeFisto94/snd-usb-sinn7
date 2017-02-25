@@ -517,6 +517,12 @@ static void sinn7_pcm_out_urb_handler(struct urb *usb_urb)
 		rt->stream_wait_cond = true;
 		wake_up(&rt->stream_wait_queue);
 	}
+	
+	return;
+    
+out_fail:
+	rt->panic = true;
+	printk("PANIC!\n");
 }
 
 static int sinn7_pcm_open(struct snd_pcm_substream *alsa_sub)
