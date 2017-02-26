@@ -19,6 +19,14 @@ In case of a faulty driver, your system could refuse to boot until you regenerat
 
 In order to install the module as dkms, you generally have three options: Installing the `.deb` file provided by this repo's release section, using the script `dkms.sh` which comes with this repository or manually following the steps to add this repository as a dkms module.
 
+
+### Using the .deb file
+If you are running a debian based system like Debian, Ubuntu or related, you can just download the appropriate .deb file from this repos release section.
+Since this file is always built for a specific kernel which you might not have, you need to ensure that your system has the required sources to build a new version locally:
+Use `sudo apt-get install linux-source linux-headers-\`uname -r\` build-essential` to add those.
+After that, you can use `sudo dpkg -i snd-usb-sinn7-dkms[...].deb` to install the driver and `sudo apt-get remove snd-usb-sinn7-dkms` to remove it again.  
+Note: Currently I _guess_ we are unable to build using travis ci since it lacks the base drivers for sound (because it is a server).
+
 ### Using the DKMS Script
 All you have to do here is to invoke `./dkms.sh` and wait for the process to complete. You are all set, great!  
 You can also use this script to auto-update the driver to be in sync with the master branch. All you have to do is call `./dkms.sh update`.
