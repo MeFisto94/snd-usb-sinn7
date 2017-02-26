@@ -10,7 +10,29 @@ Pull Requests which address this are welcome.
 It also doesn't contain the support for multiple sample rates yet and the unloading seems bugged.  
 **Warning**: This Kernel may crash or hang your system at any time and might lead to data loss or hardware failures.
 
-### How to build the Kernel Module
+
+## How to build the Kernel Module using DKMS (Recommended/Latest Version)
+Building the Kernel Module using DKMS is even easier than the old build process. The good side of this is that each time a new kernel version is released/installed, then the snd-usb-sinn7 module is reloaded.  
+
+This however would have the downside that (in case of `REMAKE_INITRD="yes"` in `src/dkms.conf`) the module gets included into your initramfs (so the module is directly included at boot time).
+In case of a faulty driver, your system could refuse to boot until you regenerate the ramfs. You can turn on `REMAKE_INITRD="yes"` in the `dkms.conf` in `src/` to enforce this behavior. I don't know if the module will be loaded at boot time in the current configuration (`REMAKE_INITRD="no"`), so Issues/PRs explaining this are pretty welcome :) I _think_ you only need this for drivers that should be loaded early on (for network boot, usb hubs and the like).
+
+In order to install the module as dkms, you generally have three options: Installing the `.deb` file provided by this repo's release section, using the script `dkms.sh` which comes with this repository or manually following the steps to add this repository as a dkms module.
+
+### Using the DKMS Script
+All you have to do here is to invoke `./dkms.sh` and wait for the process to complete. You are all set, great!  
+You can also use this script to auto-update the driver to be in sync with the master branch. All you have to do is call `./dkms.sh update`.
+Note that this requires root permissions (using sudo), so in case of an autostart, make it run as root or in some kind of interactive shell to query your password.
+Internally it will simply perform a git pull and if the `VERSION` file changed (i.e. the current VERSION is not present on your system), it will be installed.  
+
+### Manually build the dkms
+First ensure that you have the needed packages (gcc, linux-source etc) -> `sudo apt-get install dkms build-essential linux-source` or `sudo apt-get install dkms build-essential linux-source-4.8.0`  
+Create the module directory using `sudo mkdir /usr/src/snd-usb-sinn7-0.0.1/` (adjust version) and copy this repositories src/ folder there.
+Then add the module to the DKMS tree using `dkms add -m snd-usb-sinn7 -v 0.0.1` (adjust version) and compile it using `dkms build -m snd-usb-sinn7 -v 0.0.1`. (Adjust version)  
+When it is built you can execute `dkms install -m snd-usb-sinn7 -v 0.0.1` (adjust version) to install the module on your system.  
+
+
+## How to build the Kernel Module (OLD, DEPRECATED)
 Building the Kernel Module is actually really easy: You first need your recent Kernel Source.
 For Debian/Ubuntu you can issue `sudo apt-get install linux-source` or `sudo apt-get install linux-source-4.8.0`
 which will add `linux-source-4.8.0.tar.bz2` into `/usr/src`.  
