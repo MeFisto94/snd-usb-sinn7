@@ -50,6 +50,7 @@ add_dkms() {
     sudo mkdir -p /usr/src/snd-usb-sinn7-$VERSION
     cd src/
     sudo cp -Rv * /usr/src/snd-usb-sinn7-$VERSION
+    sed "s/PACKAGE_VERSION=VER/PACKAGE_VERSION=$VERSION/" dkms.conf | sudo tee /usr/src/snd-usb-sinn7-$VERSION/dkms.conf
     cd ../
     sudo dkms add -m snd-usb-sinn7 -v $VERSION
 }
