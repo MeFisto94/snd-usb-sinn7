@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-set -e
+set +e
 
 install_prereqs() {
     if ! dpkg-query -l build-essential | grep -q ii; then
@@ -60,6 +60,7 @@ add_dkms() {
 
 build_dkms() {
     sudo dkms build -m snd-usb-sinn7 -v $VERSION
+    sudo cat /var/lib/dkms/snd-usb-sinn7/`cat VERSION`/build/make.log
 }
 
 install_dkms() {

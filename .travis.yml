@@ -10,7 +10,6 @@ addons:
 
 install:
   - chmod u+x dkms.sh
-  - set +e
   - ./dkms.sh
   - cat /var/lib/dkms/snd-usb-sinn7/`cat VERSION`/build/make.log
   
