@@ -10,6 +10,7 @@ addons:
 
 install:
   - chmod u+x dkms.sh
+  - set +e
   - ./dkms.sh
   
 before_deploy:
