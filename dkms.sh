@@ -35,7 +35,7 @@ install_prereqs() {
         sudo apt-get install dkms
     fi
     
-    if ! dpkg-query -l linux-headers-`uname -r` ¦ grep -q ii; then
+    if ! dpkg-query -l linux-headers-`uname -r` | grep -q ii; then
         sudo apt-get install linux-headers-`uname -r`
     fi
 }
@@ -54,7 +54,7 @@ add_dkms() {
     sudo mkdir -p /usr/src/snd-usb-sinn7-$VERSION
     cd src/
     sudo cp -Rv * /usr/src/snd-usb-sinn7-$VERSION
-    sed "s/PACKAGE_VERSION=VER/PACKAGE_VERSION=$VERSION/" dkms.conf | sudo tee /usr/src/snd-usb-sinn7-$VERSION/dkms.conf
+    sed "s/PACKAGE_VERSION=VER/PACKAGE_VERSION=$VERSION/" dkms.conf | sudo tee /usr/src/snd-usb-sinn7-$VERSION/dkms.conf > /dev/null
     cd ../
     sudo dkms add -m snd-usb-sinn7 -v $VERSION
 }
