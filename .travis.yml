@@ -11,11 +11,13 @@ addons:
 install:
   - chmod u+x dkms.sh
   - ./dkms.sh
-  - cat /var/lib/dkms/snd-usb-sinn7/0.0.1/build/make.log
   
 before_deploy:
   - sudo dkms mkdeb -m snd-usb-sinn7 -v `cat VERSION`
   - cp /var/lib/dkms/snd-usb-sinn7/`cat VERSION`/deb/*.deb
+  
+after_failure:
+  - cat /var/lib/dkms/snd-usb-sinn7/`cat VERSION`/build/make.log
 
 deploy:
   provider: releases
