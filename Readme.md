@@ -26,7 +26,7 @@ Note that this requires root permissions (using sudo), so in case of an autostar
 Internally it will simply perform a git pull and if the `VERSION` file changed (i.e. the current VERSION is not present on your system), it will be installed.  
 
 ### Manually build the dkms
-First ensure that you have the needed packages (gcc, linux-source etc) -> `sudo apt-get install dkms build-essential linux-source` or `sudo apt-get install dkms build-essential linux-source-4.8.0`  
+First ensure that you have the needed packages (gcc, linux-source etc) -> `sudo apt-get install dkms build-essential linux-source linux-headers-\`uname -r\`` or `sudo apt-get install dkms build-essential linux-source-4.8.0 linux-headers-\`uname -r\``  
 Create the module directory using `sudo mkdir /usr/src/snd-usb-sinn7-0.0.1/` (adjust version) and copy this repositories src/ folder there.
 Then add the module to the DKMS tree using `dkms add -m snd-usb-sinn7 -v 0.0.1` (adjust version) and compile it using `dkms build -m snd-usb-sinn7 -v 0.0.1`. (Adjust version)  
 When it is built you can execute `dkms install -m snd-usb-sinn7 -v 0.0.1` (adjust version) to install the module on your system.  
@@ -34,7 +34,7 @@ When it is built you can execute `dkms install -m snd-usb-sinn7 -v 0.0.1` (adjus
 
 ## How to build the Kernel Module (OLD, DEPRECATED)
 Building the Kernel Module is actually really easy: You first need your recent Kernel Source.
-For Debian/Ubuntu you can issue `sudo apt-get install linux-source` or `sudo apt-get install linux-source-4.8.0`
+For Debian/Ubuntu you can issue `sudo apt-get install linux-source linux-headers-\`uname -r\`` or `sudo apt-get install linux-source-4.8.0 linux-headers-\`uname -r\``
 which will add `linux-source-4.8.0.tar.bz2` into `/usr/src`.  
 Inside of this archive you have `debian` and `debian.master` which are control files, build files etc which we don't need here.  
 Inside of this archive you also find `linux-source-4.8.0.tar.bz2`, extract that again to your workspace.  

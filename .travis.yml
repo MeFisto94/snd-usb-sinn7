@@ -6,6 +6,7 @@ addons:
     - dkms
     - linux-source
     - build-essential
+    - linux-headers-`uname -r`
 
 install:
   - chmod u+x dkms.sh

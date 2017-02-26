@@ -34,6 +34,10 @@ install_prereqs() {
     if ! dpkg-query -l dkms | grep -q ii; then
         sudo apt-get install dkms
     fi
+    
+    if ! dpkg-query -l linux-headers-`uname -r` ¦ grep -q ii; then
+        sudo apt-get install linux-headers-`uname -r`
+    fi
 }
 
 update_repo() {
