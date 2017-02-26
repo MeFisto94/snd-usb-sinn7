@@ -53,7 +53,7 @@ add_dkms() {
     # However users which reconfigured their system should be capable of altering two lines in this script.
     sudo mkdir -p /usr/src/snd-usb-sinn7-$VERSION
     cd src/
-    sudo cp -Rv * /usr/src/snd-usb-sinn7-$VERSION
+    sudo cp -R * /usr/src/snd-usb-sinn7-$VERSION
     sed "s/PACKAGE_VERSION=VER/PACKAGE_VERSION=$VERSION/" dkms.conf | sudo tee /usr/src/snd-usb-sinn7-$VERSION/dkms.conf > /dev/null
     cd ../
     sudo dkms add -m snd-usb-sinn7 -v $VERSION
