@@ -120,20 +120,21 @@ static const struct snd_pcm_hardware pcm_hw = {
 
 void sinn7_timer_interrupt(unsigned long data);
 
-/* message values used to change the sample rate */
-#define HIFACE_SET_RATE_REQUEST 0xb0
+/* message values used to change the sample rate.
+TODO: Investigate the correct values */
+#define SINN7_SET_RATE_REQUEST 0xb0
 
-#define HIFACE_RATE_44100  0x43
-#define HIFACE_RATE_48000  0x4b
-#define HIFACE_RATE_88200  0x42
-#define HIFACE_RATE_96000  0x4a
-#define HIFACE_RATE_176400 0x40
-#define HIFACE_RATE_192000 0x48
-#define HIFACE_RATE_352800 0x58
-#define HIFACE_RATE_384000 0x68
+#define SINN7_RATE_44100  0x43
+#define SINN7_RATE_48000  0x4b
+#define SINN7_RATE_88200  0x42
+#define SINN7_RATE_96000  0x4a
+#define SINN7_RATE_176400 0x40
+#define SINN7_RATE_192000 0x48
+#define SINN7_RATE_352800 0x58
+#define SINN7_RATE_384000 0x68
 
 static inline size_t sinn7_framecount_to_buffersize(const uint32_t numFrames) {
-	// See sinn7_frames_to_buffer for the calculation base
+	/* See sinn7_frames_to_buffer for the calculation base */
 	return ((numFrames / 10) + (numFrames % 10 > 0 ? 1 : 0)) * PCM_BLOCK_SIZE;
 }
 
@@ -150,6 +151,7 @@ static void sinn7_frame_to_buffer(void *resultBuffer, void *frameBuffer, uint8_t
 	uint8_t j;
 	int8_t k;
 	
+	void *outBuffer; /* The buffer to store the usb data */
 	int32_t frame;
 	
 	for (i = 0; i < 2; i++) { /* Stereo */
@@ -157,8 +159,6 @@ static void sinn7_frame_to_buffer(void *resultBuffer, void *frameBuffer, uint8_t
 			const uint8_t frame_01 = *((uint8_t*)(frameBuffer + i * bytesPerFrame    ));
 			const uint8_t frame_02 = *((uint8_t*)(frameBuffer + i * bytesPerFrame + 1));
 			frame = le32_to_cpu(((frame_02 & 0xFF) << 8) | (frame_01 & 0xFF));
-			//frame = *((int16_t*)(frameBuffer + i * bytesPerFrame));
-			//printk("frame == %d\n", (int16_t)(frame & 0xFFFF));
 		} else if (bytesPerFrame == 3) { /* Manual read since there is no uint24_t */
 			/* We read it as little endian, since most desktops run that,
 			 * so the conversion is only run on a minority of machines
@@ -180,9 +180,6 @@ static void sinn7_frame_to_buffer(void *resultBuffer, void *frameBuffer, uint8_t
 			
 			if (bytesPerFrame == 3) { /* 24 bits */
 				if (j == 0) {
-					/*if (frame < 0) {
-						frame |= 0x800000;
-					}*/
 					byte = (frame & 0xFF0000) >> 16; /* HIGH-Byte */
 				} else if (j == 1) {
 					byte = (frame & 0x00FF00) >> 8; /* MIDDLE-Byte */
@@ -191,11 +188,6 @@ static void sinn7_frame_to_buffer(void *resultBuffer, void *frameBuffer, uint8_t
 				}
 			} else if (bytesPerFrame == 2) { /* 16 bits */
 				if (j == 0) {
-					/* Since we used int32_t, we need to shift the sign */
-					/*if (frame < 0) {
-						frame |= 0x8000;
-					}*/
-					
 					byte = (frame & 0xFF00) >> 8; /* HIGH-Byte */
 				} else if (j == 1) {
 					byte = (frame & 0x00FF); /* LOW-BYTE */
@@ -204,7 +196,7 @@ static void sinn7_frame_to_buffer(void *resultBuffer, void *frameBuffer, uint8_t
 				}
 			}
 			
-			void *outBuffer = (resultBuffer + i * 3 * 8 + j * 8);
+			outBuffer = (resultBuffer + i * 3 * 8 + j * 8);
 			
 			for (k = 7; k >= 0; k--) {
 				memset(outBuffer, (byte & (1 << k)) != 0 ? 0x1 : 0x0, 1);
@@ -272,73 +264,22 @@ static void sinn7_frames_to_buffer_ex(void *frameBuffer, uint32_t numFrames, uin
 }
 
 static int sinn7_chip_pcm_set_rate(struct pcm_runtime *rt, unsigned int rate)
-{	
+{
+	dev_warn(&rt->chip->dev->dev, "Call to unimplemented method sinn7_chip_pcm_set_rate!\n");
 	return 0; /* TODO: Implement */
-	
-	struct usb_device *device = rt->chip->dev;
-	u16 rate_value;
-	int ret;
-
-	/* We are already sure that the rate is supported here thanks to
-	 * ALSA constraints
-	 */
-	switch (rate) {
-	case 44100:
-		rate_value = HIFACE_RATE_44100;
-		break;
-	case 48000:
-		rate_value = HIFACE_RATE_48000;
-		break;
-	case 88200:
-		rate_value = HIFACE_RATE_88200;
-		break;
-	case 96000:
-		rate_value = HIFACE_RATE_96000;
-		break;
-	case 176400:
-		rate_value = HIFACE_RATE_176400;
-		break;
-	case 192000:
-		rate_value = HIFACE_RATE_192000;
-		break;
-	case 352800:
-		rate_value = HIFACE_RATE_352800;
-		break;
-	case 384000:
-		rate_value = HIFACE_RATE_384000;
-		break;
-	default:
-		dev_err(&device->dev, "Unsupported rate %d\n", rate);
-		return -EINVAL;
-	}
-
-	/*
-	 * USBIO: Vendor 0xb0(wValue=0x0043, wIndex=0x0000)
-	 * 43 b0 43 00 00 00 00 00
-	 * USBIO: Vendor 0xb0(wValue=0x004b, wIndex=0x0000)
-	 * 43 b0 4b 00 00 00 00 00
-	 * This control message doesn't have any ack from the
-	 * other side
-	 */
-	ret = usb_control_msg(device, usb_sndctrlpipe(device, 0),
-			      HIFACE_SET_RATE_REQUEST,
-			      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_OTHER,
-			      rate_value, 0, NULL, 0, 100);
-	if (ret < 0) {
-		dev_err(&device->dev, "Error setting samplerate %d.\n", rate);
-		return ret;
-	}
-
-	return 0;
 }
 
 static struct pcm_substream *sinn7_pcm_get_substream(struct snd_pcm_substream *alsa_sub)
 {
-	struct pcm_runtime *rt = snd_pcm_substream_chip(alsa_sub);
-	struct device *device = &rt->chip->dev->dev;
+	struct pcm_runtime *rt;
+	struct device *device;
+	
+	rt = snd_pcm_substream_chip(alsa_sub);
+	device = &rt->chip->dev->dev;
 
-	if (alsa_sub->stream == SNDRV_PCM_STREAM_PLAYBACK)
+	if (alsa_sub->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		return &rt->playback;
+	}
 
 	dev_err(device, "Error getting pcm substream slot.\n");
 	return NULL;
@@ -364,7 +305,6 @@ static void sinn7_pcm_stream_stop(struct pcm_runtime *rt)
 				usb_kill_anchored_urbs(
 					&rt->out_urbs[i].submitted);
 			}
-			//usb_unlink_urb(&rt->out_urbs[i]->instance);
 			usb_kill_urb(&rt->out_urbs[i].instance);
 		}
 
@@ -376,72 +316,31 @@ static void sinn7_pcm_stream_stop(struct pcm_runtime *rt)
 static int sinn7_pcm_stream_start(struct pcm_runtime *rt)
 {
 	int ret = 0;
-	int i;
+	size_t bufSize;
+	void *zeroFrames; /* Represents silence as audio */
+	void *buffer;
 
 	if (rt->stream_state == STREAM_DISABLED) {
-
 		/* reset panic state when starting a new stream */
 		rt->panic = false;
-
 		/* submit our out urbs zero init */
 		rt->stream_state = STREAM_STARTING;
-			
-		const size_t bufSize = sinn7_framecount_to_buffersize(250);
 		
-		void *zeroFrames = kzalloc(250 * 2 * 2, GFP_ATOMIC);
-
-		void *buffer = sinn7_frames_to_buffer(zeroFrames, 250, 2);
+		/* Play 250 Frames of silence */
+		bufSize = sinn7_framecount_to_buffersize(250);
+		zeroFrames = kzalloc(250 * 2 * 2, GFP_ATOMIC);
+		buffer = sinn7_frames_to_buffer(zeroFrames, 250, 2);
 		kfree(zeroFrames);
 		
-		struct device *device = &rt->chip->dev->dev;
-			dev_dbg(device, "%s: Stream is running wakeup event\n",
-				 __func__);
+		dev_dbg(&rt->chip->dev->dev, "%s: Stream is running wakeup event\n",
+			__func__);
 		rt->stream_state = STREAM_RUNNING;
+		
 		return 0;
-			
-		for (i = 0; i < PCM_N_URBS; i++) {
-			memcpy(rt->out_urbs[i].buffer, buffer, bufSize);
-			rt->out_urbs[i].instance.transfer_buffer_length = bufSize;
-			
-			usb_anchor_urb(&rt->out_urbs[i].instance,
-				       &rt->out_urbs[i].submitted);
-			//printk("anchor usb\n");
-			//return -EIO;
-			ret = usb_submit_urb(&rt->out_urbs[i].instance,
-					     GFP_ATOMIC); // -22
-
-			if (ret != 0) {
-				if (ret == -EINVAL) {
-					dev_err(&rt->chip->dev->dev, "Unable to submit URB, maybe the Endpoint is invalid?\n");
-				}
-				
-				sinn7_pcm_stream_stop(rt);
-				kfree(buffer);
-				return ret;
-			}
-		}
-		
-		kfree(buffer);		
-		
-		/* wait for first out urb to return (sent in in urb handler) */
-		wait_event_timeout(rt->stream_wait_queue, rt->stream_wait_cond,
-				   HZ);
-		
-		if (rt->stream_wait_cond) {
-			struct device *device = &rt->chip->dev->dev;
-			dev_dbg(device, "%s: Stream is running wakeup event\n",
-				 __func__);
-
-            rt->stream_state = STREAM_RUNNING;
-		} else {
-			sinn7_pcm_stream_stop(rt);
-			return -EIO;
-		}
 	}
 	
 	return ret;
 }
-
 
 /* call with substream locked */
 /* returns true if a period elapsed */
@@ -483,8 +382,9 @@ static bool sinn7_pcm_playback(struct pcm_substream *sub, struct pcm_urb *urb)
 	}
 	
 	sub->dma_off += period_bytes;
-	if (sub->dma_off >= pcm_buffer_size)
+	if (sub->dma_off >= pcm_buffer_size) {
 		sub->dma_off -= pcm_buffer_size;
+	}
 
 	sub->period_off += alsa_rt->period_size;
 	if (sub->period_off >= alsa_rt->period_size) {
@@ -496,12 +396,11 @@ static bool sinn7_pcm_playback(struct pcm_substream *sub, struct pcm_urb *urb)
 
 static void sinn7_pcm_out_urb_handler(struct urb *usb_urb)
 {
-	struct pcm_urb *out_urb = usb_urb->context;
-	struct pcm_runtime *rt = out_urb->chip->pcm;
-	struct pcm_substream *sub;
-	bool do_period_elapsed = false;
-	unsigned long flags;
-	int ret;
+	struct pcm_urb *out_urb;
+	struct pcm_runtime *rt;
+	
+	out_urb = usb_urb->context;
+	rt = out_urb->chip->pcm;
 
 	if (rt->panic || rt->stream_state == STREAM_STOPPING)
 		return;
@@ -597,10 +496,13 @@ static int sinn7_pcm_prepare(struct snd_pcm_substream *alsa_sub)
 	int ret;
 	bool wasDisabled;
 
-	if (rt->panic)
+	if (rt->panic) {
 		return -EPIPE;
-	if (!sub)
+	}
+	
+	if (!sub) {
 		return -ENODEV;
+	}
 
 	mutex_lock(&rt->stream_mutex);
 
@@ -723,7 +625,7 @@ static void sinn7_flush_buffers(struct urb *usb_urb, struct pcm_urb *out_urb, st
 	}
 
 	if (sub->instance->runtime->period_size > 390) {
-		printk("WARNING: Period Size = %d\n", sub->instance->runtime->period_size);
+		dev_warn(&rt->chip->dev->dev, "period_size = %lu, > 390\n", sub->instance->runtime->period_size);
 	}
 	
 	out_urb->instance.transfer_buffer_length = sinn7_framecount_to_buffersize(sub->instance->runtime->period_size);
@@ -731,7 +633,7 @@ static void sinn7_flush_buffers(struct urb *usb_urb, struct pcm_urb *out_urb, st
 	
 	ret = usb_submit_urb(&out_urb->instance, GFP_ATOMIC);
 	if (ret < 0) {
-		printk("usb_submit_urb returned %d\n", ret);
+		dev_warn(&rt->chip->dev->dev, "usb_submit_urb returned %d\n", ret);
 		goto out_fail;
 	}
 
@@ -739,7 +641,7 @@ static void sinn7_flush_buffers(struct urb *usb_urb, struct pcm_urb *out_urb, st
 
 out_fail:
 	rt->panic = true;
-	printk("PANIC!\n");
+	dev_err(&rt->chip->dev->dev, "PANIC!\n");
 	
 }
 
@@ -769,7 +671,7 @@ void sinn7_pcm_abort(struct sinn7_chip *chip)
 	struct pcm_runtime *rt = chip->pcm;
 
 	if (rt) {
-		printk("State: Shutting down!\n");
+		dev_dbg(&rt->chip->dev->dev, "State: Shutting down!\n");
 		rt->panic = true;
 
 		mutex_lock(&rt->stream_mutex);
@@ -858,7 +760,6 @@ void sinn7_timer_interrupt(unsigned long data) {
 			if (rt->out_urbs[i].instance.complete && !rt->out_urbs[i].instance.hcpriv) {
 				rt->out_urbs[i].instance.context = (void*)(&rt->out_urbs[i]);
 				sinn7_flush_buffers(&rt->out_urbs[i].instance, &rt->out_urbs[i], rt, flags);
-				//sinn7_pcm_out_urb_handler(&rt->out_urbs[i].instance);
 				break;
 			}
 		}

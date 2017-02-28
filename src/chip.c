@@ -97,11 +97,14 @@ static int sinn7_chip_probe(struct usb_interface *intf,
 			     const struct usb_device_id *usb_id)
 {
 	const struct sinn7_vendor_quirk *quirk = (struct sinn7_vendor_quirk *)usb_id->driver_info;
-	int ret;
+	int return_value; /* The return value */
 	int i;
 	struct sinn7_chip *chip;
 	struct usb_device *device = interface_to_usbdev(intf);
 	int ifnum;
+	void *usb_msg_buffer;
+	uint8_t *intBuffer; /* the uint8_t* version of usb_msg_buffer, so one can access the buffer as int array,
+			     * without the need of multiple casts */
 	
 	ifnum = intf->altsetting[0].desc.bInterfaceNumber;
 	if (ifnum != 0) {
@@ -109,105 +112,96 @@ static int sinn7_chip_probe(struct usb_interface *intf,
 		return -EINVAL;
 	}
 
-	//ret = usb_driver_set_configuration(device, 1);
-	void *buffer = kzalloc(15, GFP_KERNEL);
-	ret = usb_control_msg(device, usb_rcvctrlpipe(device, 0), 0x56, 0xC0, 0x0, 0x0, buffer, 15, USB_TIMEOUT);
+	usb_msg_buffer = kzalloc(15, GFP_KERNEL);
+	return_value = usb_control_msg(device, usb_rcvctrlpipe(device, 0), 0x56, 0xC0, 0x0, 0x0, usb_msg_buffer, 15, USB_TIMEOUT);
 	
-	uint8_t *intBuffer = (uint8_t*)buffer; /* to reduce the cast count */
+	intBuffer = (uint8_t*)usb_msg_buffer;
 	
 	if (intBuffer[0] != 0x31 || intBuffer[1] != 0x01 || intBuffer[2] != 0x08) {
 	  dev_err(&device->dev, "received unexpected answer. possibly the firmware version changed? received: %x %x %x, expected: 0x31 0x01 0x08\n", intBuffer[0], intBuffer[1], intBuffer[2]);
-	  kfree(buffer);
-	  return -ENODEV; /* TODO: Find suitable error */
-// 	} else {
-	  kfree(buffer);
+	  kfree(usb_msg_buffer);
+	  return -EIO; /* TODO: Find suitable error */
 	}
 	
-	ret = usb_set_interface(device, 0, 1);
-	if (ret != 0) {
+	return_value = usb_set_interface(device, 0, 1);
+	if (return_value != 0) {
 	  dev_err(&device->dev, "can't set interface 0 for " CARD_NAME " device.\n");
 	  return -EIO;
 	}
 	
-	ret = usb_set_interface(device, 1, 1);
-	if (ret != 0) {
+	return_value = usb_set_interface(device, 1, 1);
+	if (return_value != 0) {
 	  dev_err(&device->dev, "can't set interface 1 for " CARD_NAME " device.\n");
 	  return -EIO;
 	}
-	
-	buffer = kzalloc(1, GFP_KERNEL);
-	intBuffer = (uint8_t*)buffer;
-	
-	ret = usb_control_msg(device, usb_rcvctrlpipe(device, 0), 0x49, 0xC0, 0x0, 0X0, buffer, 1, USB_TIMEOUT);
+
+	return_value = usb_control_msg(device, usb_rcvctrlpipe(device, 0), 0x49, 0xC0, 0x0, 0X0, usb_msg_buffer, 1, USB_TIMEOUT);
 	
 	if (intBuffer[0] != 0x32 && intBuffer[0] != 0x12) {
 	  dev_err(&device->dev, "received unexpected answer. possibly the firmware has been changed? received: %x, expected: 0x32 or 0x12\n", intBuffer[0]);
-	  kfree(buffer);
-	  return -ENODEV; /* TODO: Find suitable error */
-	} else {
-	  kfree(buffer);
+	  kfree(usb_msg_buffer);
+	  return -EIO; /* TODO: Find suitable error */
 	}
 	
-	buffer = kzalloc(3, GFP_KERNEL);
-	intBuffer = (uint8_t*)buffer;
-	
-	ret = usb_control_msg(device, usb_rcvctrlpipe(device, 0), 0x81, 0xA2, 0x100, 0x0, buffer, 3, USB_TIMEOUT);
+	return_value = usb_control_msg(device, usb_rcvctrlpipe(device, 0), 0x81, 0xA2, 0x100, 0x0, usb_msg_buffer, 3, USB_TIMEOUT);
 	
 	if (intBuffer[0] != 0x44 || intBuffer[1] != 0xAC || intBuffer[2] != 0x00) {
 	  dev_err(&device->dev, "received unexpected answer. possibly the firmware has been changed? received: %x %x %x, expected: 0x44 0xAC 0x00\n", intBuffer[0], intBuffer[1], intBuffer[2]);
-	  kfree(buffer);
-	  return -ENODEV; /* TODO: Find suitable error */
-	} /* Intentionally no else!! */
-	
-	ret = usb_control_msg(device, usb_sndctrlpipe(device, 0), 0x1, 0x22, 0x100, 0x86, buffer, 3, USB_TIMEOUT);
-	ret = usb_control_msg(device, usb_sndctrlpipe(device, 0), 0x1, 0x22, 0x100, 0x05, buffer, 3, USB_TIMEOUT);
-	
-	// REUSE: kfree(buffer);
-	ret = usb_control_msg(device, usb_rcvctrlpipe(device, 0), 0x81, 0xA2, 0x100, 0x86, buffer, 3, USB_TIMEOUT);
-	if (intBuffer[0] != 0x44 || intBuffer[1] != 0xAC || intBuffer[2] != 0x00) {
-	  dev_err(&device->dev, "received unexpected answer. possibly the firmware has been changed? received: %x %x %x, expected: 0x44 0xAC 0x00\n", intBuffer[0], intBuffer[1], intBuffer[2]);
-	  kfree(buffer);
-	  return -ENODEV; /* TODO: Find suitable error */
+	  kfree(usb_msg_buffer);
+	  return -EIO; /* TODO: Find suitable error */
 	}
 	
-	ret = usb_control_msg(device, usb_rcvctrlpipe(device, 0), 0x49, 0xC0, 0x0, 0x0, buffer, 1, USB_TIMEOUT);
+	return_value = usb_control_msg(device, usb_sndctrlpipe(device, 0), 0x1, 0x22, 0x100, 0x86, usb_msg_buffer, 3, USB_TIMEOUT);
+	return_value = usb_control_msg(device, usb_sndctrlpipe(device, 0), 0x1, 0x22, 0x100, 0x05, usb_msg_buffer, 3, USB_TIMEOUT);
+	return_value = usb_control_msg(device, usb_rcvctrlpipe(device, 0), 0x81, 0xA2, 0x100, 0x86, usb_msg_buffer, 3, USB_TIMEOUT);
+	
+	if (intBuffer[0] != 0x44 || intBuffer[1] != 0xAC || intBuffer[2] != 0x00) {
+	  dev_err(&device->dev, "received unexpected answer. possibly the firmware has been changed? received: %x %x %x, expected: 0x44 0xAC 0x00\n", intBuffer[0], intBuffer[1], intBuffer[2]);
+	  kfree(usb_msg_buffer);
+	  return -EIO; /* TODO: Find suitable error */
+	}
+	
+	return_value = usb_control_msg(device, usb_rcvctrlpipe(device, 0), 0x49, 0xC0, 0x0, 0x0, usb_msg_buffer, 1, USB_TIMEOUT);
 	if (intBuffer[0] != 0x32 && intBuffer[0] != 0x12) {
 	  dev_err(&device->dev, "received unexpected answer. possibly the firmware has been changed? received: %x, expected: 0x32 or 0x12\n", intBuffer[0]);
-	  kfree(buffer);
-	  return -ENODEV; /* TODO: Find suitable error */
+	  kfree(usb_msg_buffer);
+	  return -EIO; /* TODO: Find suitable error */
 	}
 	
-	ret = usb_control_msg(device, usb_sndctrlpipe(device, 0), 0x49, 0x40, 0x32, 0x0, buffer, 0, USB_TIMEOUT);
+	return_value = usb_control_msg(device, usb_sndctrlpipe(device, 0), 0x49, 0x40, 0x32, 0x0, usb_msg_buffer, 0, USB_TIMEOUT);
 	
 	/* halt the endpoints */
-	ret = usb_control_msg(device, usb_sndctrlpipe(device, 0), 0x01, 0x02, 0x0, 0x86, buffer, 0, USB_TIMEOUT);
-	ret = usb_control_msg(device, usb_sndctrlpipe(device, 0), 0x01, 0x02, 0x0, 0x05, buffer, 0, USB_TIMEOUT);
+	return_value = usb_control_msg(device, usb_sndctrlpipe(device, 0), 0x01, 0x02, 0x0, 0x86, usb_msg_buffer, 0, USB_TIMEOUT);
+	return_value = usb_control_msg(device, usb_sndctrlpipe(device, 0), 0x01, 0x02, 0x0, 0x05, usb_msg_buffer, 0, USB_TIMEOUT);
 	
-
 	/* check whether the card is already registered */
 	chip = NULL;
 	mutex_lock(&register_mutex);
 
-	for (i = 0; i < SNDRV_CARDS; i++)
-		if (enable[i])
+	for (i = 0; i < SNDRV_CARDS; i++) {
+		if (enable[i]) {
 			break;
+		}
+	}
 
 	if (i >= SNDRV_CARDS) {
 		dev_err(&device->dev, "no available " CARD_NAME " audio device\n");
-		ret = -ENODEV;
+		return_value = -ENODEV;
 		goto err;
 	}
 
-	ret = sinn7_chip_create(intf, device, i, quirk, &chip);
-	if (ret < 0)
+	return_value = sinn7_chip_create(intf, device, i, quirk, &chip);
+	if (return_value < 0) {
 		goto err;
+	}
 
-	ret = sinn7_pcm_init(chip, quirk ? quirk->extra_freq : 0);
-	if (ret < 0)
+	return_value = sinn7_pcm_init(chip, quirk ? quirk->extra_freq : 0);
+	if (return_value < 0) {
 		goto err_chip_destroy;
+	}
 
-	ret = snd_card_register(chip->card);
-	if (ret < 0) {
+	return_value = snd_card_register(chip->card);
+	if (return_value < 0) {
 		dev_err(&device->dev, "cannot register " CARD_NAME " card\n");
 		goto err_chip_destroy;
 	}
@@ -221,7 +215,7 @@ err_chip_destroy:
 	snd_card_free(chip->card);
 err:
 	mutex_unlock(&register_mutex);
-	return ret;
+	return return_value;
 }
 
 static void sinn7_chip_disconnect(struct usb_interface *intf)
@@ -230,8 +224,9 @@ static void sinn7_chip_disconnect(struct usb_interface *intf)
 	struct snd_card *card;
 
 	chip = usb_get_intfdata(intf);
-	if (!chip)
+	if (!chip) {
 		return;
+	}
 
 	card = chip->card;
 
